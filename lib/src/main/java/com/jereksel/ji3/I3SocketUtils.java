@@ -1,5 +1,7 @@
 package com.jereksel.ji3;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.newsclub.net.unix.AFUNIXSocket;
 import org.newsclub.net.unix.AFUNIXSocketAddress;
 
@@ -8,11 +10,23 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.function.Consumer;
+
+import static com.jereksel.ji3.I3MessageType.SUBSCRIBE;
 
 class I3SocketUtils {
 
-    public static String getWorkspaces(I3Socket socket) {
-        return sendMessageSync(socket, I3MessageType.GET_WORKSPACES, "");
+    private static ObjectMapper mapper = new ObjectMapper();
+
+    public static List<Workspace> getWorkspaces(I3Socket socket) {
+        String w = sendMessageSync(socket, I3MessageType.GET_WORKSPACES, "");
+        try {
+            return mapper.readValue(w, new TypeReference<List<Workspace>>() {});
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
     }
 
 
@@ -21,7 +35,7 @@ class I3SocketUtils {
     }
 
 
-    private static String sendMessageSync(I3Socket socket, I3MessageType messageType, String command) {
+    static String sendMessageSync(I3Socket socket, I3MessageType messageType, String command) {
 
         try {
             try (AFUNIXSocket sock = AFUNIXSocket.newInstance()) {
@@ -44,6 +58,38 @@ class I3SocketUtils {
 
     }
 
+    static void sendMessageAsync(I3Socket socket, I3EventType type, Consumer<String> callback) {
+        String command = "[" + "\"" + type.type + "\"" + "]";
+
+        try {
+            try (AFUNIXSocket sock = AFUNIXSocket.newInstance()) {
+                sock.connect(new AFUNIXSocketAddress(new File(socket.getSocketLocation())));
+
+                ByteBuffer b = getByteBuffer(SUBSCRIBE, command);
+
+                try (InputStream in = sock.getInputStream();
+                     OutputStream os = sock.getOutputStream()) {
+                    os.write(b.array());
+                    os.flush();
+
+                    getString(in);
+
+                    while (true) {
+                        String s = getString(in);
+                        callback.accept(s);
+                    }
+//                    return getString(in);
+                }
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+
+
+    }
+
     private static String getString(InputStream in) throws IOException {
         byte[] y = new byte[6];
         int a = in.read(y);
@@ -60,27 +106,18 @@ class I3SocketUtils {
 
         int messageSize = toInt(size);
 
-        System.out.println("Message size: " + messageSize);
+//        System.out.println("Message size: " + messageSize);
 
         byte[] typeArr = new byte[4];
         in.read(typeArr);
         int type = toInt(typeArr);
 
-
-//                    byte type = (byte) in.read();
-//                    in.read();
-//                    in.read();
-//                    in.read();
-//                    if (type == -1) {
-//                        throw new RuntimeException("Error during type reading");
-//                    }
-
         byte[] message = new byte[messageSize];
         int status = in.read(message);
 
-//                    if (status != messageSize) {
-//                        throw new RuntimeException("Error during message reading");
-//                    }
+        if (status == -1) {
+            return null;
+        }
 
         return new String(message);
     }
@@ -93,18 +130,13 @@ class I3SocketUtils {
 
         return ByteBuffer.allocate(14 + length)
                 .put(ByteBuffer.wrap("i3-ipc".getBytes()))
-//                        .putInt(length)
                 .put(toByteArray(length))
-                .put((byte) messageType.id)
-                .put((byte) 0)
-                .put((byte) 0)
-                .put((byte) 0)
-//                        .putInt(messageType.id)
+                .put(toByteArray(messageType.id))
                 .put(ByteBuffer.wrap(command.getBytes()));
     }
 
     private static byte[] toByteArray(int length) {
-        int p = (int) Math.pow(2,8);
+        int p = 256; //(int) Math.pow(2,8);
 
         byte l1 = (byte) (length % p);
         byte l2 = (byte) ((length >> 8) % p);
@@ -115,7 +147,7 @@ class I3SocketUtils {
     }
 
     private static int toInt(byte[] arr) {
-        return arr[0] + (arr[1] << 8) + (arr[2] << 16) + (arr[3] << 24);
+        return (arr[0] & 0xFF) + ((arr[1] & 0xFF) << 8) + ((arr[2] & 0xFF) << 16) + ((arr[3] & 0xFF) << 24);
     }
 
     private class Pair<A,B> {

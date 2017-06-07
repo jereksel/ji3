@@ -1,6 +1,6 @@
 package com.jereksel.ji3;
 
-public enum  I3EventType {
+public enum I3EventType {
     WORKSPACE("workspace"),
     OUTPUT("output"),
     MODE("mode"),

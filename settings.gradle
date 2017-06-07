@@ -1,2 +1,4 @@
-rootProject.name = 'pl.jereksel'
-
+//rootProject.name = 'ji3
+include 'lib'
+//findProject(':lib')?.name = 'ji3'
+include 'app'

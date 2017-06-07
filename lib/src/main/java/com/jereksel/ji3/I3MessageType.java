@@ -1,6 +1,6 @@
 package com.jereksel.ji3;
 
-public enum I3MessageType {
+enum I3MessageType {
 
     COMMAND(0),
     GET_WORKSPACES(1),
@@ -14,7 +14,7 @@ public enum I3MessageType {
 
     public final int id;
 
-    private I3MessageType(int id) {
+    I3MessageType(int id) {
         this.id = id;
     }
 

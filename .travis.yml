@@ -1,0 +1,22 @@
+language: java
+
+sudo: false
+
+jdk:
+ - oraclejdk8
+
+script:
+  - ./gradlew clean assemble
+
+deploy:
+  provider: script
+  skip_cleanup: true
+  script: ./gradlew :lib:publish :lib:generatePomFileForMyPublicationPublication :lib:bintrayUpload
+  on:
+    tags: true
+    all_branches: false
+
+cache:
+  directories:
+    - $HOME/.m2
+    - $HOME/.gradle

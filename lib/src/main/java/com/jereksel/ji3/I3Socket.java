@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import static com.jereksel.ji3.I3SocketUtils.sendMessageAsync;
 import static com.jereksel.ji3.I3SocketUtils.sendMessageSync;
